@@ -1,0 +1,354 @@
+Bo Yu (byu1@stevens.edu)
+
+CS615A -- Aspects of System Administration - Spring 2012
+
+HTTP Exercise
+
+Start a NetBSD EC2 instance (ami-820fddeb). On it, install an HTTP server and configure it to listen on port 8080.
+
+(For your convenience, the suitable PKG_PATH for this AMI would be: ftp://ftp.netbsd.org/pub/pkgsrc/packages/NetBSD/i386/6.0/All/)
+
+Next, fetch the following two programs:
+
+test.cgi
+test2.cgi
+Configure your web server such that a user can go to http://<your-instance-name:8080>/test.cgi and sees the message "Hello from group #N", and to http://<your-instance-name:8080>/test2.cgi and sees the message "Group #N says: that was easy".
+
+(For the second part, you will probably find the ktruss(1) useful.)
+
+The due date for this assignment is 2012-04-11 13:00. Please attach file containing a description of what you did and what you learned to an email sent from your @stevens.edu email address to jschauma@stevens.edu with a subject of "[CS615] HTTP Exercise".
+
+
+[SOLUTION]
+
+1. Start a NetBSD EC2 instance (ami-820fddeb). On it, install an HTTP server and configure it to listen on port 8080.
+
+	1.1	Start a NetBSD EC2 instance.
+		
+		Start a NetBSD EC2 instance by EC2 Classic Wizard.
+	
+	1.2 Install Lighttpd and configure it to listen on port 8080.
+	
+		a. Download the latest source code of lighttpd from http://www.lighttpd.net/
+		
+		b. Transfer the file lighttpd-1.4.30.tar.gz to the EC2 instance by scp.
+		
+		c. On the EC2 instance, un-compress the file into local directory.
+		
+		d. Enter the directory lighttpd-1.4.30, to execute three commands ./configure, make, make install to install httpd.
+		
+		e. Generate a configuration file named my-lighttpd.conf.
+		
+			#--------------------	BEGIN -----------------------
+			# lighttpd configuration file
+			#
+			# use it as a base for lighttpd 1.0.0 and above
+			#
+			# $Id: lighttpd.conf,v 1.7 2004/11/03 22:26:05 weigon Exp $
+
+			############ Options you really have to take care of ####################
+
+			## modules to load
+			# at least mod_access and mod_accesslog should be loaded
+			# all other module should only be loaded if really neccesary
+			# - saves some time
+			# - saves memory
+			server.modules              = (
+			                               "mod_rewrite",
+			                               "mod_redirect",
+			                               "mod_alias",
+			)
+
+			## A static document-root. For virtual hosting take a look at the
+			## mod_simple_vhost module.
+			server.document-root        = "/var/www/html/"
+
+			## where to send error-messages to
+			server.errorlog             = "/www/logs/lighttpd.error.log"
+
+			# files to check for if .../ is requested
+			index-file.names            = ( "index.php", "index.html",
+			                                "index.htm", "default.htm" )
+
+			## set the event-handler (read the performance section in the manual)
+			# server.event-handler = "freebsd-kqueue" # needed on OS X
+
+			# mimetype mapping
+			mimetype.assign             = (
+			  ".pdf"          =>      "application/pdf",
+			  ".sig"          =>      "application/pgp-signature",
+			  ".spl"          =>      "application/futuresplash",
+			  ".class"        =>      "application/octet-stream",
+			  ".ps"           =>      "application/postscript",
+			  ".torrent"      =>      "application/x-bittorrent",
+			  ".dvi"          =>      "application/x-dvi",
+			  ".gz"           =>      "application/x-gzip",
+			  ".pac"          =>      "application/x-ns-proxy-autoconfig",
+			  ".swf"          =>      "application/x-shockwave-flash",
+			  ".tar.gz"       =>      "application/x-tgz",
+			  ".tgz"          =>      "application/x-tgz",
+			  ".tar"          =>      "application/x-tar",
+			  ".zip"          =>      "application/zip",
+			  ".mp3"          =>      "audio/mpeg",
+			  ".m3u"          =>      "audio/x-mpegurl",
+			  ".wma"          =>      "audio/x-ms-wma",
+			  ".wax"          =>      "audio/x-ms-wax",
+			  ".ogg"          =>      "application/ogg",
+			  ".wav"          =>      "audio/x-wav",
+			  ".gif"          =>      "image/gif",
+			  ".jar"          =>      "application/x-java-archive",
+			  ".jpg"          =>      "image/jpeg",
+			  ".jpeg"         =>      "image/jpeg",
+			  ".png"          =>      "image/png",
+			  ".xbm"          =>      "image/x-xbitmap",
+			  ".xpm"          =>      "image/x-xpixmap",
+			  ".xwd"          =>      "image/x-xwindowdump",
+			  ".css"          =>      "text/css",
+			  ".html"         =>      "text/html",
+			  ".htm"          =>      "text/html",
+			  ".js"           =>      "text/javascript",
+			  ".asc"          =>      "text/plain",
+			  ".c"            =>      "text/plain",
+			  ".cpp"          =>      "text/plain",
+			  ".log"          =>      "text/plain",
+			  ".conf"         =>      "text/plain",
+			  ".text"         =>      "text/plain",
+			  ".txt"          =>      "text/plain",
+			  ".dtd"          =>      "text/xml",
+			  ".xml"          =>      "text/xml",
+			  ".mpeg"         =>      "video/mpeg",
+			  ".mpg"          =>      "video/mpeg",
+			  ".mov"          =>      "video/quicktime",
+			  ".qt"           =>      "video/quicktime",
+			  ".avi"          =>      "video/x-msvideo",
+			  ".asf"          =>      "video/x-ms-asf",
+			  ".asx"          =>      "video/x-ms-asf",
+			  ".wmv"          =>      "video/x-ms-wmv",
+			  ".bz2"          =>      "application/x-bzip",
+			  ".tbz"          =>      "application/x-bzip-compressed-tar",
+			  ".tar.bz2"      =>      "application/x-bzip-compressed-tar"
+			 )
+
+			# Use the "Content-Type" extended attribute to obtain mime type if possible
+			#mimetype.use-xattr        = "enable"
+
+
+			## send a different Server: header
+			## be nice and keep it at lighttpd
+			# server.tag                 = "lighttpd"
+
+			#### accesslog module
+			accesslog.filename          = "/www/logs/access.log"
+
+			## deny access the file-extensions
+			#
+			# ~    is for backupfiles from vi, emacs, joe, ...
+			# .inc is often used for code includes which should in general not be part
+			#      of the document-root
+			url.access-deny             = ( "~", ".inc" )
+
+			$HTTP["url"] =~ "\.pdf$" {
+			  server.range-requests = "disable"
+			}
+
+			##
+			# which extensions should not be handle via static-file transfer
+			#
+			# .php, .pl, .fcgi are most often handled by mod_proxy_core or mod_cgi
+			static-file.exclude-extensions = ( "cgi", ".php", ".pl", ".fcgi" )
+
+			######### Options that are good to be but not neccesary to be changed #######
+
+			## bind to port (default: 80)
+			server.port                = 8080
+
+			## bind to localhost (default: all interfaces)
+			#server.bind                = "grisu.home.kneschke.de"
+
+			## error-handler for status 404
+			#server.error-handler-404   = "/error-handler.html"
+			#server.error-handler-404   = "/error-handler.php"
+
+			## to help the rc.scripts
+			#server.pid-file            = "/var/run/lighttpd.pid"
+
+
+			###### virtual hosts
+			##
+			##  If you want name-based virtual hosting add the next three settings and load
+			##  mod_simple_vhost
+			##
+			## document-root =
+			##   virtual-server-root + virtual-server-default-host + virtual-server-docroot
+			## or
+			##   virtual-server-root + http-host + virtual-server-docroot
+			##
+			#simple-vhost.server-root   = "/home/weigon/wwwroot/servers/"
+			#simple-vhost.default-host  = "grisu.home.kneschke.de"
+			#simple-vhost.document-root = "/pages/"
+
+
+			##
+			## Format: <errorfile-prefix><status-code>.html
+			## -> ..../status-404.html for 'File not found'
+			#server.errorfile-prefix    = "/home/weigon/projects/lighttpd/doc/status-"
+
+			## virtual directory listings
+			#dir-listing.activate       = "enable"
+
+			## enable debugging
+			#debug.log-request-header     = "enable"
+			#debug.log-response-header    = "enable"
+			#debug.log-request-handling   = "enable"
+			#debug.log-file-not-found     = "enable"
+			#debug.log-condition-handling = "enable"
+
+			### only root can use these options
+			#
+			# chroot() to directory (default: no chroot() )
+			#server.chroot              = "/"
+
+			## change uid to <uid> (default: don't care)
+			#server.username            = "wwwrun"
+
+			## change uid to <uid> (default: don't care)
+			#server.groupname           = "wwwrun"
+
+			#### compress module
+			#compress.cache-dir         = "/tmp/lighttpd/cache/compress/"
+			#compress.filetype          = ("text/plain", "text/html")
+
+			#### mod-proxy-core module
+			## read mod-proxy-core.txt for more info
+			## for PHP don't forget to set cgi.fix_pathinfo = 1 in the php.ini
+			#$PHYSICAL["existing-path"] =~ "\.php$" {
+			#	proxy-core.balancer = "round-robin"
+			#	proxy-core.allow-x-sendfile = "enable"
+			#	proxy-core.protocol = "fastcgi"
+			#	proxy-core.backends = ( "unix:/tmp/php-fastcgi.sock" )
+			#	proxy-core.max-pool-size = 16
+			#}
+
+
+			#### CGI module
+			cgi.assign                 = ( ".pl"  => "/usr/pkg/bin/perl",
+			                               ".cgi" => "/usr/pkg/bin/perl" )
+			
+			#--------------------	END -----------------------
+		
+		f. Run the lighttpd with the configuration file.
+		
+			ip-10-195-207-81# lighttpd -f my-lighttpd.conf
+			
+			See the file /www/logs/lighttpd.error.log to verify the server is running.
+			
+2. Next, fetch the following two programs:
+			test.cgi
+			test2.cgi
+Configure your web server such that a user can go to http://<your-instance-name:8080>/test.cgi and sees the message "Hello from group #N", and to http://<your-instance-name:8080>/test2.cgi and sees the message "Group #N says: that was easy".
+	
+	2.1 Transfer two files into instance by scp.
+	
+		host-studentw-140-192:byu1 boyu2011$ scp -i ~/.ec2/stevens-key.pem ~/stevens/cs615-sysadmin/http_ex/test* 					
+																				 root@ec2-50-16-62-215.compute-1.amazonaws.com:/var/www/html/
+		test.cgi                                                                100%  113     0.1KB/s   00:00    
+		test2.cgi                                                               100% 7118     7.0KB/s   00:00
+		
+	2.2 Using perl to run the test.cgi that make sure the file is running correctly.
+	
+		ip-10-195-207-81# perl /var/www/html/test.cgi
+		<HTML>
+		<BODY>
+		<H1>Hello from Group 2!!!</H1>
+		</BODY>
+		
+	2.3 From a web browser, visit http://ec2-50-16-62-215.compute-1.amazonaws.com:8080/test.cgi and sees the message "Hello from Group 2!!!"
+	
+	2.4 For the file test2.cgi, when I tried to run it, the error message shows that it contains lots of unrecognized character!!
+	
+		ip-10-195-207-81# perl /var/www/html/test2.cgi
+		Unrecognized character \x7F; marked by <-- HERE after <-- HERE near column 1 at /var/www/html/test2.cgi line 2.
+		
+		So it should be a binary file. then i run it again.
+		
+		ip-10-195-207-81# ./test2.cgi
+		chdir: No such file or directory
+		
+		Then I use ktruss to trace the program execute route.
+		
+		ip-10-195-207-81# ktruss ./test2.cgi
+		chdir: No such file or directory
+		  2825      1 ktruss   fktrace                     = 0
+		  2825      1 ktruss   emul(netbsd)
+		  2825      1 ktruss   fcntl(0x4, 0x3, 0)          = 1
+		  2825      1 ktruss   fcntl(0x4, 0x4, 0x1)        = 0
+		  2825      1 test2.cgi execve("./test2.cgi", 0xbf7feda4, 0xbf7fedac) JUSTRETURN
+		  2825      1 test2.cgi emul(netbsd)
+		  2825      1 test2.cgi mmap(0, 0x8000, 0x3, 0x1002, 0xffffffff, 0, 0, 0) = 0xbb7e5000
+		  2825      1 test2.cgi open("/etc/ld.so.conf", 0, 0) Err#2 ENOENT
+		  2825      1 test2.cgi open("/usr/lib/libc.so.12", 0, 0) = 3
+		  2825      1 test2.cgi __fstat50(0x3, 0xbf7fe520) = 0
+		  2825      1 test2.cgi mmap(0, 0x1000, 0x1, 0x1, 0x3, 0, 0, 0) = 0xbb7e4000
+		  2825      1 test2.cgi munmap(0xbb7e4000, 0x1000) = 0
+		  2825      1 test2.cgi mmap(0, 0x110000, 0x5, 0x2, 0x3, 0, 0, 0) = 0xbb6d5000
+		  2825      1 test2.cgi mmap(0xbb7ce000, 0x8000, 0x3, 0x12, 0x3, 0, 0xf8000, 0) = 0xbb7ce000
+		  2825      1 test2.cgi mmap(0xbb7d6000, 0xf000, 0x3, 0x1012, 0xffffffff, 0, 0, 0) = 0xbb7d6000
+		  2825      1 test2.cgi close(0x3)                 = 0
+		  2825      1 test2.cgi _lwp_setprivate(0xbb7e9040) = 0
+		  2825      1 test2.cgi _lwp_self()                = 1
+		  2825      1 test2.cgi __sigprocmask14(0x1, 0xbf7fecdc, 0xbf7fed5c) = 0
+		  2825      1 test2.cgi __sigprocmask14(0x3, 0xbf7fed5c, 0) = 0
+		  2825      1 test2.cgi __sysctl(0xbb7cbe9c, 0x2, 0xbb7e3560, 0xbf7fec7c, 0, 0) = 0
+		  2825      1 test2.cgi _lwp_self()                = 1
+		  2825      1 test2.cgi __sigprocmask14(0x1, 0xbf7fec8c, 0xbf7fed5c) = 0
+		  2825      1 test2.cgi __sigprocmask14(0x3, 0xbf7fed5c, 0) = 0
+		  2825      1 test2.cgi chdir("./file ")           Err#2 ENOENT
+		  2825      1 test2.cgi issetugid()                = 0
+		  2825      1 test2.cgi issetugid()                = 0
+		  2825      1 test2.cgi __sysctl(0xbf7fdd6c, 0x2, 0xbb7ddbe8, 0xbf7fdd74, 0, 0) = 0
+		  2825      1 test2.cgi __sysctl(0xbf7fdc74, 0x2, 0xbb7e4480, 0xbf7fdc7c, 0, 0) = 0
+		  2825      1 test2.cgi readlink("/etc/malloc.conf", 0xbf7fdd79, 0x400) Err#2 ENOENT
+		  2825      1 test2.cgi break(0x8100000)           = 0
+		  2825      1 test2.cgi mmap(0, 0x100000, 0x3, 0x14001002, 0xffffffff, 0, 0, 0) = 0xbb500000
+		  2825      1 test2.cgi open("/usr/share/nls/nls.alias.db", 0x400000, 0xbb7f1be9) Err#2 ENOENT
+		  2825      1 test2.cgi open("/usr/share/nls/nls.alias", 0x400000, 0xbf7fe168) = 3
+		  2825      1 test2.cgi __fstat50(0x3, 0xbf7fe144) = 0
+		  2825      1 test2.cgi mmap(0, 0x5f0, 0x1, 0x2, 0x3, 0, 0, 0) = 0xbb6d4000
+		  2825      1 test2.cgi close(0x3)                 = 0
+		  2825      1 test2.cgi munmap(0xbb6d4000, 0x5f0)  = 0
+		  2825      1 test2.cgi open("/usr/share/nls/C/libc.cat", 0, 0x1) = 3
+		  2825      1 test2.cgi __fstat50(0x3, 0xbf7fe1c4) = 0
+		  2825      1 test2.cgi mmap(0, 0x10be, 0x1, 0x1, 0x3, 0, 0, 0) = 0xbb6d3000
+		  2825      1 test2.cgi close(0x3)                 = 0
+		  2825      1 test2.cgi munmap(0xbb6d3000, 0x10be) = 0
+		  2825      1 test2.cgi __fstat50(0x1, 0xbf7fe0e4) = 0
+		  2825      1 test2.cgi ioctl(0x1, TIOCGETA, 0xbf7fe140) = 0
+		       "\^B+\0\0\^C\0\0\0\0K\0\0\M-O\^E\0\0\^D\M^?\M^?\^?\^W\^U\^R\M^?\^C\^\\^Z\^Y\^Q\^S\^V\^O\^A\0\^T\M^?\M^@%\0\0\M^@%\0\0"
+		  2825      1 test2.cgi write(0x1, 0xbb501000, 0x21) = 33
+		       "chdir: No such file or directory\n"
+		  2825      1 test2.cgi _lwp_self()                = 1
+		  2825      1 test2.cgi __sigprocmask14(0x1, 0xbf7fec7c, 0xbf7fecbc) = 0
+		  2825      1 test2.cgi __sigprocmask14(0x3, 0xbf7fecbc, 0) = 0
+		  2825      1 test2.cgi _lwp_self()                = 1
+		  2825      1 test2.cgi __sigprocmask14(0x1, 0xbf7fec1c, 0xbf7fecbc) = 0
+		  2825      1 test2.cgi __sigprocmask14(0x3, 0xbf7fecbc, 0) = 0
+		  2825      1 test2.cgi exit(0x1)
+		
+		The error shows in the following lines:
+		
+			open("/usr/share/nls/nls.alias.db", 0x400000, 0xbb7f1be9) Err#2 ENOENT
+			
+		AFTER SOME INVESTIGATION, I HAVE NO IDEA WITH THIS ERROR..
+		
+	2.5 From a web browser, visit http://ec2-50-16-62-215.compute-1.amazonaws.com:8080/test2.cgi and sees the message
+
+		add one line code in the my-httpd.conf
+			
+			cgi.assign += (".cgi" => "")
+			
+		BUT IT STILL DOESN'T WORK. NEED MORE INVESTIGATION!!!!!
+		
+3. What I have learned.
+
+	From this exercise, I learned how to setup a HTTP server on the NetBSD instance, how to configure a configuration file for a server, how to deploy a cgi dynamic webpage for a server.
+		

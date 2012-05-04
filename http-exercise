@@ -1,0 +1,20 @@
+
+CS615A -- Aspects of System Administration - Spring 2012
+
+HTTP Exercise
+
+Start a NetBSD EC2 instance (ami-820fddeb). On it, install an HTTP server and configure it to listen on port 8080.
+
+(For your convenience, the suitable PKG_PATH for this AMI would be: ftp://ftp.netbsd.org/pub/pkgsrc/packages/NetBSD/i386/6.0/All/)
+
+Next, fetch the following two programs:
+
+test.cgi
+test2.cgi
+Configure your web server such that a user can go to http://<your-instance-name:8080>/test.cgi and sees the message "Hello from group #N", and to http://<your-instance-name:8080>/test2.cgi and sees the message "Group #N says: that was easy".
+
+(For the second part, you will probably find the ktruss(1) useful.)
+
+The due date for this assignment is 2012-04-11 13:00. Please attach file containing a description of what you did and what you learned to an email sent from your @stevens.edu email address to jschauma@stevens.edu with a subject of "[CS615] HTTP Exercise".
+
+[Course Website]

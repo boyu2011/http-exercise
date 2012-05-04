@@ -1,0 +1,119 @@
+
+Subject	[cs615asa] http exercise notes
+Sender	Jan Schaumann 
+Recipient	cs615asa@lists.stevens.edu 
+Reply-To	CS615A - Aspects of System Administration 
+Date	04/12/2012 1:34 PM
+Hello,
+
+Here are a few notes regarding the http exercise we did in class and
+that some of you finished at home:
+
+As you noticed, the machine image ami-820fddeb would sometimes create
+instances that did not come up properly.  We had no problems in class,
+but lateron many of you encountered this problem.  There appears to be
+an issue with the NetBSD/i386 images that is only triggered if the
+instance is created on certain hypervisors, but that works fine on
+others.  I filed a problem report for that, which you can track here:
+
+http://gnats.NetBSD.org/cgi-bin/query-pr-single.pl?number=46306
+
+
+We then noticed in class that after we added the apache-2.2 package, the
+executable would not run.  This is a bug in the way the package was
+built, or rather a problem in how pkgsrc handles dependencies on the
+base system.  apache is linked against libexpat, which on NetBSD is
+provided by the 'xbase' set.  The EC2 images do not include the 'xbase'
+set (since the X11 window system is really not needed), but the apache
+package has not way of knowing this.  I filed a problem report for that,
+which you can track here:
+
+http://gnats.netbsd.org/cgi-bin/query-pr-single.pl?number=46309
+
+Note that this is ultimately a duplicate of:
+http://gnats.netbsd.org/cgi-bin/query-pr-single.pl?number=40346
+
+Now despite this error, it is possible to make this apache package work
+on the system in question.  Some of you installed the 'expat' package,
+which provides a newer version of the 'libexpat' library, but apache did
+not find it.  The reason for that is that the packages are compiled with
+a strict description of where to look for shared libraries; you should
+be able to make the package work by playing with the LD_LIBRARY_PATH
+environment variable.  (Understanding how dynamic linking works is
+certainly worth it for any System Administrator.)
+
+You should NOT blindly copy the library into /usr/lib or anything like
+that -- by doing so, you lose all the benefits of having a package
+management system and you will no longer have a way of updating the
+system.  Suppose you need to remove the 'expat' package again lateron --
+now you need to manually track down all the files that you earlier
+copied around.  In addition, it's possible that other software picks up
+the library you placed into the base system and breaks.
+
+
+If you installed the apache-1.x version of the package, you would have
+gotten a working binary, by the way.  Or you could install another web
+server (apache is not the only web server in existence), as many of you
+did.  Or you could not bother with binary packages and instead build
+apache (or any other web server) using pkgsrc (which would then detect
+the missing 'expat' library and build and link against it itself).
+
+Either way, eventually you got yourself a working web server.  Now you
+had to change the configuration to listen on port 8080 (basically a
+one-line change in most configuration files) as well as add the right
+configuration to allow for the execution of CGI programs.
+
+When you place the 'test.cgi' program into a folder configured for CGI
+execution, you will find that a web request yields an 'internal server
+error' -- the error logs of the web server would usually indicate what
+might be wrong.  Issues include:
+
+- permissions on the file: test.cgi needs to be executable by the user
+  as which the web server runs
+- path to the interpreter: test.cgi contains a hashbang of
+  /opt/bin/perl, which is unlikely to be correct on this system
+- syntax errors in the script
+- missing content-type header: a CGI needs to generate the correct HTTP
+  headers for the response, at a minimum the 'Content-Type' header and
+  two carriage returns before it can produce content
+
+So far, so good, this wasn't too tricky.  Now when you fetch 'test2.cgi'
+you'll quickly find that this is not a perl script.  CGI programs can be
+any kind of program, including perl, php, shell, python or compiled
+programs.
+
+Ask the file(1) command what it thinks the program is.  This one turns
+out to be a binary, to which you do not have the sources.  How can you
+find out what it's trying to do?
+
+ktruss(1) to the rescue! ktruss(1) allows you to see the different
+system calls a binary makes as it executes.  As you look through the
+output, you should find that it is trying to change the current working
+directory:
+
+  2987      1 test2.cgi chdir("./file ")           Err#2 ENOENT
+
+Yes, it is trying to look for a directory called "file ".  Note the
+trailing space on the directory name.  Create this directory, for
+example via 'mkdir "file "'.
+
+Next, you should see it look for a file named "dir" (whoever wrote this
+program was obviously rather confused):
+
+  2985      1 test2.cgi chdir("./file ")           = 0
+  2985      1 test2.cgi open("dir", 0, 0)          Err#2 ENOENT
+
+If you create this file and place content into it, the program will
+print it.  So to work as a CGI, you once again have to remember to add
+the Content-Type header followed by two empty lines and finally the
+desired text.
+
+And that is all.  For those of you who did not get to this point,
+perhaps give it another try with these instructions to see everything in
+action.
+
+-Jan
+_______________________________________________
+cs615asa mailing list
+cs615asa@lists.stevens.edu
+https://lists.stevens.edu/cgi-bin/mailman/listinfo/cs615asa
